@@ -3,10 +3,9 @@ import { Octokit } from "@octokit/rest";
 /**
  * This script creates a new repository on the authenticated user's account.
  */
-async function createRepository() {
+export async function createRepository() {
   console.log("Starting repository creation...");
 
-  // 1. Get Token and Repo Name from environment variables
   const token = process.env.GITHUB_PAT;
   const repoName = process.env.NEW_REPO_NAME;
 
@@ -21,15 +20,13 @@ async function createRepository() {
 
   console.log(`Creating repository: ${repoName}`);
 
-  // 2. Initialize Octokit
   const octokit = new Octokit({ auth: token });
 
-  // 3. Create the repository for the user
   try {
     const response = await octokit.rest.repos.createForAuthenticatedUser({
       name: repoName,
       description: 'Repository scaffolded by IDP automation',
-      private: true, // Defaulting to private
+      private: true,
     });
 
     console.log(`SUCCESS: Created repository!`);
@@ -42,6 +39,3 @@ async function createRepository() {
 
   console.log("...Repository creation finished.");
 }
-
-// Run the main function
-createRepository();
