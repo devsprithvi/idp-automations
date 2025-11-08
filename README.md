@@ -1,102 +1,214 @@
-Testing GitHub Actions Locally
+# IDP Automations
 
-This guide outlines how to test this project's GitHub Actions workflows on your local Windows machine before committing and pushing them to GitHub. This saves time and avoids cluttering your repository's commit history with test runs.
+A comprehensive guide for testing GitHub Actions workflows locally using `act`, enabling efficient development and debugging without cluttering your repository's commit history.
 
-We use a command-line tool called act to run the workflows.
+## Table of Contents
 
-1. Setup & Installation
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Troubleshooting](#troubleshooting)
 
-You only need to do this once.
+---
 
-Prerequisite: Docker Desktop
+## Overview
 
-act works by running your workflows inside a Docker container that mimics the GitHub runners (like ubuntu-latest).
+This project provides infrastructure for testing GitHub Actions workflows on your local Windows machine before deployment. By leveraging the `act` CLI tool, you can validate workflows in a containerized environment that mimics GitHub's runners, significantly reducing development iteration time.
 
-You must install Docker Desktop for Windows.
+---
 
-Before running act, Docker Desktop must be open and running in the background.
+## Prerequisites
 
-Install act
+### Docker Desktop
 
-We will use the Chocolatey package manager to install act.
+`act` requires Docker to create containerized environments that simulate GitHub runners (e.g., `ubuntu-latest`).
 
-Open PowerShell as Administrator.
+1. Download and install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop)
+2. Ensure Docker Desktop is running before executing any `act` commands
+3. Verify installation:
+   ```powershell
+   docker --version
+   ```
 
-Run the following command:
+### Chocolatey Package Manager
 
-choco install act-cli
+Required for installing `act` on Windows. If not already installed, follow the [official Chocolatey installation guide](https://chocolatey.org/install).
 
+---
 
-2. Handling Secrets (Required)
+## Installation
 
-Your workflows will fail locally without the required secrets. act does not have access to your repository's secrets on GitHub.
+### Installing act
 
-The solution is to create a local .secrets file.
+1. Open PowerShell as Administrator
+2. Execute the following command:
+   ```powershell
+   choco install act-cli
+   ```
+3. Verify installation:
+   ```powershell
+   act --version
+   ```
 
-In the root of this project, create a file named exactly .secrets
+---
 
-CRITICAL: Add this file to your .gitignore immediately so you never commit your secrets!
+## Configuration
 
-# .gitignore
-.secrets
+### Setting Up Secrets
 
+GitHub Actions workflows often require secrets for authentication and configuration. Since `act` cannot access your repository's GitHub secrets, you must provide them locally.
 
-Add your secrets to the .secrets file in KEY=VALUE format. Your file should look like this:
+#### Step 1: Create a `.secrets` File
 
-# This is for 'act' to download actions (e.g., actions/checkout)
+In the project root directory, create a file named `.secrets`:
+
+```bash
+# GitHub token for act to download actions (e.g., actions/checkout@v4)
 GITHUB_TOKEN=ghp_YourPersonalAccessToken
 
-# This is for our custom scripts (e.g., createRepository.js)
+# Personal Access Token for custom automation scripts
 AUTOMATION_PAT=ghp_YourPersonalAccessToken
 
-# This is for workflow inputs, like the repository name
+# Workflow input variables
 REPO_NAME=my-test-repo-from-act
+```
 
+#### Step 2: Secure Your Secrets
 
-Note: GITHUB_TOKEN and AUTOMATION_PAT can be the same Personal Access Token (Classic) with repo and workflow scopes. act specifically looks for GITHUB_TOKEN, and our script looks for AUTOMATION_PAT.
+**CRITICAL:** Ensure `.secrets` is added to `.gitignore` to prevent accidental commits:
 
-3. Fixing Workflow Inputs for Local Testing
+```gitignore
+# Secrets file
+.secrets
+```
 
-Our workflows are triggered by workflow_dispatch, which expects user input (like repository_name). When running locally, this input is empty.
+The `.gitignore` file in this repository already includes this entry.
 
-We must tell the workflow to use our .secrets value as a fallback.
+#### Step 3: Generate Personal Access Tokens
 
-Example (create-repository.yml):
+Create a GitHub Personal Access Token (Classic) with the following scopes:
+- `repo` (Full control of private repositories)
+- `workflow` (Update GitHub Action workflows)
 
-Change this:
+Generate tokens at: [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
 
+> **Note:** `GITHUB_TOKEN` and `AUTOMATION_PAT` can use the same token value.
+
+---
+
+### Adapting Workflows for Local Testing
+
+Workflows triggered by `workflow_dispatch` expect user inputs that are unavailable during local execution. Modify your workflows to use fallback values from `.secrets`.
+
+#### Example Modification
+
+**Before:**
+```yaml
 env:
   NEW_REPO_NAME: ${{ github.event.inputs.repository_name }}
+```
 
-
-To this:
-
+**After:**
+```yaml
 env:
   NEW_REPO_NAME: ${{ github.event.inputs.repository_name || secrets.REPO_NAME }}
+```
 
+The `||` operator provides a fallback to `secrets.REPO_NAME` when the GitHub input is empty.
 
-The || secrets.REPO_NAME tells it to use the REPO_NAME from your .secrets file if the GitHub input is missing.
+---
 
-4. How to Run Workflows Locally
+## Usage
 
-With Docker running and your .secrets file created, you can now run your tests.
+### Running Workflows Locally
 
-Open your terminal in the project root.
+Ensure Docker Desktop is running before executing any commands.
 
-Use the act command, specifying the event and the job ID (-j).
+#### Basic Syntax
 
-Example: Running the create job
+```powershell
+act <event> -j <job-id>
+```
 
-To run only the create job from the workflow_dispatch trigger:
+#### Examples
 
+**Run the `create` job:**
+```powershell
 act workflow_dispatch -j create
+```
 
-
-Example: Running the delete job
-
-(Once it is fixed) you can run it with:
-
+**Run the `delete` job:**
+```powershell
 act workflow_dispatch -j delete
+```
 
+**Run all jobs for an event:**
+```powershell
+act workflow_dispatch
+```
 
-If you just run act workflow_dispatch, it will try to run all jobs in all workflows that respond to that event.
+> **Warning:** Running without specifying a job ID (`-j`) will execute all jobs in all workflows that respond to the specified event.
+
+#### Common Options
+
+- `--secret-file .secrets` - Explicitly specify the secrets file (default: `.secrets`)
+- `--list` - List available workflows and jobs
+- `--dryrun` - Show what would be run without executing
+- `-v` - Verbose output for debugging
+
+---
+
+## Troubleshooting
+
+### Docker Not Running
+
+**Error:** `Cannot connect to the Docker daemon`
+
+**Solution:** Ensure Docker Desktop is running before executing `act` commands.
+
+### Missing Secrets
+
+**Error:** Workflow fails with authentication errors
+
+**Solution:** Verify your `.secrets` file exists and contains valid tokens with appropriate scopes.
+
+### Workflow Not Found
+
+**Error:** `could not find any workflows`
+
+**Solution:** Ensure you're running the command from the project root directory where `.github/workflows/` exists.
+
+### Token Permissions
+
+**Error:** `Resource not accessible by integration`
+
+**Solution:** Regenerate your Personal Access Token with `repo` and `workflow` scopes enabled.
+
+---
+
+## Security Best Practices
+
+1. **Never commit** the `.secrets` file to version control
+2. **Rotate tokens** regularly and immediately if exposed
+3. **Use minimal scopes** required for your workflows
+4. **Revoke unused tokens** from GitHub settings
+
+---
+
+## Additional Resources
+
+- [act Documentation](https://github.com/nektos/act)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Docker Desktop Documentation](https://docs.docker.com/desktop/)
+
+---
+
+## License
+
+[Specify your license here]
+
+## Contributing
+
+[Add contribution guidelines if applicable]
