@@ -17,7 +17,8 @@ jobs:
         with:
           node-version: '20'
       - run: npm install
-      - run: npx ts-node src/services/github/deleteRepository.ts
+      - run: npx tsc
+      - run: node dist/services/github/deleteRepository.js
         env:
           GITHUB_PAT: ${{ secrets.AUTOMATION_PAT }}
-          REPO_NAME_TO_DELETE: ${{ github.event.inputs.repository_name }}
+          REPO_NAME_TO_DELETE: ${{ github.event.inputs.repository_name || secrets.REPO_NAME_TO_DELETE }}

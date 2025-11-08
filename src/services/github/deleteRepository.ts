@@ -1,21 +1,11 @@
 import { Octokit } from "@octokit/rest";
 
-/**
- * This script deletes a repository from the authenticated user's account.
- */
-export async function deleteRepository() {
-  console.log("Starting repository deletion...");
-
+async function deleteRepository() {
   const token = process.env.GITHUB_PAT;
   const repoName = process.env.REPO_NAME_TO_DELETE;
-  const owner = process.env.GITHUB_OWNER;
 
-  if (!token) {
-    console.error("GITHUB_PAT secret is not set. Aborting.");
-    process.exit(1);
-  }
-  if (!repoName) {
-    console.error("REPO_NAME_TO_DELETE input is not set. Aborting.");
+  if (!token || !repoName) {
+    console.error("ERROR: Missing GITHUB_PAT or REPO_NAME_TO_DELETE");
     process.exit(1);
   }
 
@@ -23,33 +13,19 @@ export async function deleteRepository() {
 
   const octokit = new Octokit({ auth: token });
 
-  let repoOwner = owner;
-  if (!repoOwner) {
-    try {
-      const userResponse = await octokit.rest.users.getAuthenticated();
-      repoOwner = userResponse.data.login;
-    } catch (error: any) {
-      console.error(`ERROR: Failed to get authenticated user:`, error.message);
-      process.exit(1);
-    }
-  }
-
   try {
+    const { data: user } = await octokit.rest.users.getAuthenticated();
+    
     await octokit.rest.repos.delete({
-      owner: repoOwner,
+      owner: user.login,
       repo: repoName,
     });
 
-    console.log(`SUCCESS: Repository '${repoName}' has been deleted!`);
-
+    console.log(`SUCCESS: Repository '${repoName}' deleted!`);
   } catch (error: any) {
-    if (error.status === 404) {
-      console.error(`ERROR: Repository '${repoName}' not found or you don't have permission to delete it.`);
-    } else {
-      console.error(`ERROR: Failed to delete repository:`, error.message);
-    }
+    console.error(`ERROR: ${error.message}`);
     process.exit(1);
   }
-
-  console.log("...Repository deletion finished.");
 }
+
+deleteRepository();
