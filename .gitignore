@@ -65,6 +65,9 @@ jspm_packages/
 .env.test.local
 .env.production.local
 
+# Secrets file
+.secrets
+
 # parcel-bundler cache
 .cache
 .parcel-cache
