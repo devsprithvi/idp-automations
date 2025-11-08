@@ -16,8 +16,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          
       - run: npm install
-      - run: npx ts-node src/services/github/createRepository.ts
+
+      # 1. ADD THIS STEP to compile your TypeScript
+      # (This assumes you have a "build" script in your package.json
+      # that runs 'tsc'. If not, just use 'npx tsc')
+      - run: npx tsc
+      
+      # 2. CHANGE THIS STEP to run the output JavaScript file
+      # Note the path change from 'src' to 'dist' (or similar)
+      # and the extension change from '.ts' to '.js'
+      - run: node dist/services/github/createRepository.js
         env:
           GITHUB_PAT: ${{ secrets.AUTOMATION_PAT }}
           NEW_REPO_NAME: ${{ github.event.inputs.repository_name }}
